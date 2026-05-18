@@ -385,7 +385,8 @@ The platform enforces:
 ## Live Demo
 
 ```text
-atomquest-hack-one.vercel.app
+https://atomberg-hack.vercel.app
+
 ```
 
 # 🔑 Demo Credentials
