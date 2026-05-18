@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole, parseJson } from "@/lib/api-auth";
 import { sendEmail } from "@/lib/notifications/email";
-import { sendTeamsNotification } from "@/lib/notifications/teams";
+import { sendSlackNotification } from "@/lib/notifications/slack";
 import { goalApprovedCard } from "@/lib/notifications/templates";
 
 export async function POST(request: NextRequest) {
@@ -35,22 +35,22 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  if (channel === "teams") {
+  if (channel === "slack") {
     const card = goalApprovedCard(
       "Test Employee",
       "FY 2026-27 (Test)",
       process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
     );
 
-    const result = await sendTeamsNotification(card);
+    const result = await sendSlackNotification(card);
 
     return NextResponse.json({
       success: result.success,
       message: result.success
-        ? "Test notification sent to Teams channel"
-        : `Teams failed: ${result.error}`,
+        ? "Test notification sent to Slack channel"
+        : `Slack failed: ${result.error}`,
     });
   }
 
-  return NextResponse.json({ error: "Invalid channel. Use 'email' or 'teams'." }, { status: 400 });
+  return NextResponse.json({ error: "Invalid channel. Use 'email' or 'slack'." }, { status: 400 });
 }

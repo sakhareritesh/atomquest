@@ -194,7 +194,7 @@ export async function POST(request: NextRequest) {
         user_id: user.id,
         action: "create",
         field_changed: `${body.quarter} check-in`,
-        old_value: null,
+        old_value: "",
         new_value: `Check-in for ${emp?.name || "employee"}: ${body.comment.substring(0, 100)}`,
       });
     }

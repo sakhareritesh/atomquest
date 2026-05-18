@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
     user_id: user.id,
     action: "create",
     field_changed: "status",
-    old_value: null,
+    old_value: "",
     new_value: `pending (level ${body.escalation_level || 1}, ${notificationIds.length} notifications sent${managerName ? `, manager: ${managerName}` : ""})`,
   });
 

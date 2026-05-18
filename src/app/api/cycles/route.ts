@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     user_id: user.id,
     action: "create",
     field_changed: "cycle",
-    old_value: null,
+    old_value: "",
     new_value: cycle.name,
   });
 

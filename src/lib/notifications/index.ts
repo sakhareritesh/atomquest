@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail } from "./email";
-import { sendTeamsNotification } from "./teams";
+import { sendSlackNotification } from "./slack";
 import * as templates from "./templates";
 
 async function getSettings(): Promise<Record<string, string>> {
@@ -60,15 +60,15 @@ export async function notifyGoalSubmitted(params: {
         })()
       : Promise.resolve({ success: false, error: "disabled" });
 
-  const teamsPromise =
-    settings.teams_notifications_enabled !== "false"
-      ? sendTeamsNotification(
+  const slackPromise =
+    settings.slack_notifications_enabled !== "false"
+      ? sendSlackNotification(
           templates.goalSubmittedCard(params.employeeName, params.goalCount, `${baseUrl}/manager/approvals`)
         )
       : Promise.resolve({ success: false, error: "disabled" });
 
-  const [inApp, email, teams] = await Promise.allSettled([inAppPromise, emailPromise, teamsPromise]);
-  logResults("goalSubmitted", inApp, email, teams);
+  const [inApp, email, slack] = await Promise.allSettled([inAppPromise, emailPromise, slackPromise]);
+  logResults("goalSubmitted", inApp, email, slack);
 }
 
 // ─── Goal Sheet Approved ─────────────────────────────────────────────
@@ -103,15 +103,15 @@ export async function notifyGoalApproved(params: {
         })()
       : Promise.resolve({ success: false, error: "disabled" });
 
-  const teamsPromise =
-    settings.teams_notifications_enabled !== "false"
-      ? sendTeamsNotification(
+  const slackPromise =
+    settings.slack_notifications_enabled !== "false"
+      ? sendSlackNotification(
           templates.goalApprovedCard(params.employeeName, params.cycleName, `${baseUrl}/employee/goals`)
         )
       : Promise.resolve({ success: false, error: "disabled" });
 
-  const [inApp, email, teams] = await Promise.allSettled([inAppPromise, emailPromise, teamsPromise]);
-  logResults("goalApproved", inApp, email, teams);
+  const [inApp, email, slack] = await Promise.allSettled([inAppPromise, emailPromise, slackPromise]);
+  logResults("goalApproved", inApp, email, slack);
 }
 
 // ─── Goal Sheet Rejected ─────────────────────────────────────────────
@@ -148,15 +148,15 @@ export async function notifyGoalRejected(params: {
         })()
       : Promise.resolve({ success: false, error: "disabled" });
 
-  const teamsPromise =
-    settings.teams_notifications_enabled !== "false"
-      ? sendTeamsNotification(
+  const slackPromise =
+    settings.slack_notifications_enabled !== "false"
+      ? sendSlackNotification(
           templates.goalRejectedCard(params.employeeName, params.reason, `${baseUrl}/employee/goals`)
         )
       : Promise.resolve({ success: false, error: "disabled" });
 
-  const [inApp, email, teams] = await Promise.allSettled([inAppPromise, emailPromise, teamsPromise]);
-  logResults("goalRejected", inApp, email, teams);
+  const [inApp, email, slack] = await Promise.allSettled([inAppPromise, emailPromise, slackPromise]);
+  logResults("goalRejected", inApp, email, slack);
 }
 
 // ─── Escalation Created ──────────────────────────────────────────────
@@ -193,9 +193,9 @@ export async function notifyEscalation(params: {
         })()
       : Promise.resolve({ success: false, error: "disabled" });
 
-  const teamsPromise =
-    settings.teams_notifications_enabled !== "false"
-      ? sendTeamsNotification(
+  const slackPromise =
+    settings.slack_notifications_enabled !== "false"
+      ? sendSlackNotification(
           templates.escalationCard(
             params.targetName,
             params.ruleLabel,
@@ -206,8 +206,8 @@ export async function notifyEscalation(params: {
         )
       : Promise.resolve({ success: false, error: "disabled" });
 
-  const [email, teams] = await Promise.allSettled([emailPromise, teamsPromise]);
-  logResults("escalation", { status: "fulfilled", value: [] }, email, teams);
+  const [email, slack] = await Promise.allSettled([emailPromise, slackPromise]);
+  logResults("escalation", { status: "fulfilled", value: [] }, email, slack);
 }
 
 // ─── Check-in Reminder ───────────────────────────────────────────────
@@ -239,9 +239,9 @@ export async function notifyCheckinReminder(params: {
         })()
       : Promise.resolve({ success: false, error: "disabled" });
 
-  const teamsPromise =
-    settings.teams_notifications_enabled !== "false"
-      ? sendTeamsNotification(
+  const slackPromise =
+    settings.slack_notifications_enabled !== "false"
+      ? sendSlackNotification(
           templates.checkinReminderCard(
             params.managerName,
             params.teamMembers,
@@ -251,8 +251,8 @@ export async function notifyCheckinReminder(params: {
         )
       : Promise.resolve({ success: false, error: "disabled" });
 
-  const [email, teams] = await Promise.allSettled([emailPromise, teamsPromise]);
-  logResults("checkinReminder", { status: "fulfilled", value: [] }, email, teams);
+  const [email, slack] = await Promise.allSettled([emailPromise, slackPromise]);
+  logResults("checkinReminder", { status: "fulfilled", value: [] }, email, slack);
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────
@@ -287,9 +287,9 @@ function logResults(
   event: string,
   inApp: PromiseSettledResult<unknown>,
   email: PromiseSettledResult<unknown>,
-  teams: PromiseSettledResult<unknown>
+  slack: PromiseSettledResult<unknown>
 ) {
   const status = (r: PromiseSettledResult<unknown>) =>
     r.status === "fulfilled" ? "ok" : `failed: ${(r as PromiseRejectedResult).reason}`;
-  console.log(`[Notify:${event}] inApp=${status(inApp)} email=${status(email)} teams=${status(teams)}`);
+  console.log(`[Notify:${event}] inApp=${status(inApp)} email=${status(email)} slack=${status(slack)}`);
 }

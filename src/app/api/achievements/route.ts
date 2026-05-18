@@ -262,7 +262,7 @@ export async function POST(request: NextRequest) {
           user_id: user.id,
           action: "create",
           field_changed: `${body.quarter} achievement`,
-          old_value: null,
+          old_value: "",
           new_value: `actual=${actualValue}, planned=${plannedTarget}, score=${score}, status=${progressStatus}`,
         }]
       : auditFields.map((f) => ({

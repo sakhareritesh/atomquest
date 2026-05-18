@@ -123,21 +123,21 @@ export function checkinReminderEmail(
   };
 }
 
-// --- Teams Adaptive Card builders ---
+// --- Slack Block Kit builders ---
 
 export function goalSubmittedCard(employeeName: string, goalCount: number, deepLink: string) {
-  return adaptiveCard(
+  return slackMessage(
     "New Goal Sheet Submitted",
-    `**${employeeName}** has submitted their goal sheet with **${goalCount} goals** for your review.`,
+    `*${employeeName}* has submitted their goal sheet with *${goalCount} goals* for your review.`,
     "Review Now",
     deepLink
   );
 }
 
 export function goalApprovedCard(employeeName: string, cycleName: string, deepLink: string) {
-  return adaptiveCard(
+  return slackMessage(
     "Goal Sheet Approved",
-    `**${employeeName}**'s goal sheet for **${cycleName}** has been approved and locked.`,
+    `*${employeeName}*'s goal sheet for *${cycleName}* has been approved and locked.`,
     "View Details",
     deepLink
   );
@@ -145,9 +145,9 @@ export function goalApprovedCard(employeeName: string, cycleName: string, deepLi
 
 export function goalRejectedCard(employeeName: string, reason: string | null, deepLink: string) {
   const body = reason
-    ? `**${employeeName}**'s goal sheet was returned for rework.\n\n_Reason: ${reason}_`
-    : `**${employeeName}**'s goal sheet was returned for rework.`;
-  return adaptiveCard("Goal Sheet Returned", body, "View Details", deepLink);
+    ? `*${employeeName}*'s goal sheet was returned for rework.\n\n_Reason: ${reason}_`
+    : `*${employeeName}*'s goal sheet was returned for rework.`;
+  return slackMessage("Goal Sheet Returned", body, "View Details", deepLink);
 }
 
 export function escalationCard(
@@ -157,40 +157,43 @@ export function escalationCard(
   deadline: string | null,
   deepLink: string
 ) {
-  let body = `Escalation raised for **${targetName}**: **${ruleLabel}**.`;
+  let body = `Escalation raised for *${targetName}*: *${ruleLabel}*.`;
   if (message) body += `\n\n_"${message}"_`;
-  if (deadline) body += `\n\nDeadline: **${new Date(deadline).toLocaleDateString()}**`;
-  return adaptiveCard("Escalation Alert", body, "Take Action", deepLink);
+  if (deadline) body += `\n\nDeadline: *${new Date(deadline).toLocaleDateString()}*`;
+  return slackMessage("Escalation Alert", body, "Take Action", deepLink);
 }
 
 export function checkinReminderCard(managerName: string, teamMembers: string[], quarter: string, deepLink: string) {
-  const memberList = teamMembers.map((n) => `- ${n}`).join("\n");
-  return adaptiveCard(
+  const memberList = teamMembers.map((n) => `• ${n}`).join("\n");
+  return slackMessage(
     `${quarter} Check-in Reminder`,
-    `Hi **${managerName}**, the following team members need their ${quarter} check-in:\n\n${memberList}`,
+    `Hi *${managerName}*, the following team members need their ${quarter} check-in:\n\n${memberList}`,
     "Go to Check-ins",
     deepLink
   );
 }
 
-function adaptiveCard(title: string, body: string, ctaText: string, ctaUrl: string) {
+function slackMessage(title: string, body: string, ctaText: string, ctaUrl: string) {
   return {
-    type: "message",
-    attachments: [
+    blocks: [
       {
-        contentType: "application/vnd.microsoft.card.adaptive",
-        content: {
-          $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-          type: "AdaptiveCard",
-          version: "1.4",
-          body: [
-            { type: "TextBlock", text: title, weight: "Bolder", size: "Medium", wrap: true },
-            { type: "TextBlock", text: body, wrap: true, spacing: "Medium" },
-          ],
-          actions: [
-            { type: "Action.OpenUrl", title: ctaText, url: ctaUrl },
-          ],
-        },
+        type: "header",
+        text: { type: "plain_text", text: title, emoji: true },
+      },
+      {
+        type: "section",
+        text: { type: "mrkdwn", text: body },
+      },
+      {
+        type: "actions",
+        elements: [
+          {
+            type: "button",
+            text: { type: "plain_text", text: ctaText },
+            url: ctaUrl,
+            style: "primary",
+          },
+        ],
       },
     ],
   };

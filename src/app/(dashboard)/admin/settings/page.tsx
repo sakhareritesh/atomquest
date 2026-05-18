@@ -24,8 +24,8 @@ import { toast } from "sonner";
 
 interface IntegrationSettings {
   email_notifications_enabled: string;
-  teams_notifications_enabled: string;
-  teams_webhook_url: string;
+  slack_notifications_enabled: string;
+  slack_webhook_url: string;
   email_from_name: string;
   app_base_url: string;
 }
@@ -33,17 +33,17 @@ interface IntegrationSettings {
 export default function SettingsPage() {
   const [settings, setSettings] = useState<IntegrationSettings>({
     email_notifications_enabled: "true",
-    teams_notifications_enabled: "true",
-    teams_webhook_url: "",
+    slack_notifications_enabled: "true",
+    slack_webhook_url: "",
     email_from_name: "GoalTracker",
     app_base_url: "",
   });
   const [hasResendKey, setHasResendKey] = useState(false);
-  const [hasTeamsEnvUrl, setHasTeamsEnvUrl] = useState(false);
+  const [hasSlackEnvUrl, setHasSlackEnvUrl] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testingEmail, setTestingEmail] = useState(false);
-  const [testingTeams, setTestingTeams] = useState(false);
+  const [testingSlack, setTestingSlack] = useState(false);
   const [webhookUrlInput, setWebhookUrlInput] = useState("");
   const [baseUrlInput, setBaseUrlInput] = useState("");
   const [fromNameInput, setFromNameInput] = useState("GoalTracker");
@@ -55,7 +55,7 @@ export default function SettingsPage() {
         const data = await res.json();
         setSettings(data.settings);
         setHasResendKey(data.hasResendKey);
-        setHasTeamsEnvUrl(data.hasTeamsEnvUrl);
+        setHasSlackEnvUrl(data.hasSlackEnvUrl);
         setFromNameInput(data.settings.email_from_name || "GoalTracker");
         setBaseUrlInput(data.settings.app_base_url || "");
       }
@@ -79,8 +79,8 @@ export default function SettingsPage() {
         body: JSON.stringify({
           settings: {
             email_notifications_enabled: settings.email_notifications_enabled,
-            teams_notifications_enabled: settings.teams_notifications_enabled,
-            teams_webhook_url: webhookUrlInput || settings.teams_webhook_url,
+            slack_notifications_enabled: settings.slack_notifications_enabled,
+            slack_webhook_url: webhookUrlInput || settings.slack_webhook_url,
             email_from_name: fromNameInput,
             app_base_url: baseUrlInput,
           },
@@ -120,30 +120,30 @@ export default function SettingsPage() {
     }
   }
 
-  async function handleTestTeams() {
-    setTestingTeams(true);
+  async function handleTestSlack() {
+    setTestingSlack(true);
     try {
       const res = await fetch("/api/settings/test-notification", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ channel: "teams" }),
+        body: JSON.stringify({ channel: "slack" }),
       });
       const data = await res.json();
       if (data.success) {
         toast.success(data.message);
       } else {
-        toast.error(data.message || "Test Teams notification failed");
+        toast.error(data.message || "Test Slack notification failed");
       }
     } catch {
-      toast.error("Test Teams notification failed");
+      toast.error("Test Slack notification failed");
     } finally {
-      setTestingTeams(false);
+      setTestingSlack(false);
     }
   }
 
   const emailConfigured = hasResendKey;
-  const teamsConfigured =
-    hasTeamsEnvUrl || (settings.teams_webhook_url && settings.teams_webhook_url !== "");
+  const slackConfigured =
+    hasSlackEnvUrl || (settings.slack_webhook_url && settings.slack_webhook_url !== "");
 
   if (loading) {
     return (
@@ -298,13 +298,13 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-          {/* Teams Integration */}
+          {/* Slack Integration */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <MessageSquare className="h-5 w-5" />
-                Microsoft Teams
-                {teamsConfigured ? (
+                Slack
+                {slackConfigured ? (
                   <Badge className="bg-green-100 text-green-800 ml-auto">
                     <CheckCircle className="h-3 w-3 mr-1" />
                     Configured
@@ -319,17 +319,17 @@ export default function SettingsPage() {
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <Label className="text-sm font-medium">Enable Teams Notifications</Label>
+                  <Label className="text-sm font-medium">Enable Slack Notifications</Label>
                   <p className="text-xs text-muted-foreground">
-                    Send adaptive cards to a Teams channel for key events
+                    Send notifications to a Slack channel for key events
                   </p>
                 </div>
                 <Switch
-                  checked={settings.teams_notifications_enabled === "true"}
+                  checked={settings.slack_notifications_enabled === "true"}
                   onCheckedChange={(checked: boolean) =>
                     setSettings((s) => ({
                       ...s,
-                      teams_notifications_enabled: checked ? "true" : "false",
+                      slack_notifications_enabled: checked ? "true" : "false",
                     }))
                   }
                 />
@@ -342,31 +342,31 @@ export default function SettingsPage() {
                   value={webhookUrlInput}
                   onChange={(e) => setWebhookUrlInput(e.target.value)}
                   placeholder={
-                    settings.teams_webhook_url
-                      ? settings.teams_webhook_url
-                      : "https://outlook.office.com/webhook/..."
+                    settings.slack_webhook_url
+                      ? settings.slack_webhook_url
+                      : "https://hooks.slack.com/services/T.../B.../xxxx"
                   }
                 />
                 <p className="text-xs text-muted-foreground">
-                  {hasTeamsEnvUrl
-                    ? "Fallback URL set via TEAMS_WEBHOOK_URL env var. DB value takes priority."
-                    : "Get this from Teams channel > Manage Channel > Connectors > Incoming Webhook."}
+                  {hasSlackEnvUrl
+                    ? "Fallback URL set via SLACK_WEBHOOK_URL env var. DB value takes priority."
+                    : "Get this from your Slack App > Incoming Webhooks > Add New Webhook to Workspace."}
                 </p>
               </div>
 
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleTestTeams}
-                disabled={!teamsConfigured || testingTeams}
+                onClick={handleTestSlack}
+                disabled={!slackConfigured || testingSlack}
                 className="w-full"
               >
-                {testingTeams ? (
+                {testingSlack ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 ) : (
                   <Send className="h-4 w-4 mr-2" />
                 )}
-                Send Test to Teams
+                Send Test to Slack
               </Button>
             </CardContent>
           </Card>
@@ -389,7 +389,7 @@ export default function SettingsPage() {
                     placeholder="https://goaltracker.vercel.app"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Used for deep links in email and Teams notifications
+                    Used for deep links in email and Slack notifications
                   </p>
                 </div>
               </div>
@@ -398,11 +398,11 @@ export default function SettingsPage() {
                 <h4 className="text-sm font-medium mb-3">Notification Events</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   {[
-                    { event: "Goal Sheet Submitted", target: "Manager", channels: "Email + Teams + In-App" },
-                    { event: "Goal Sheet Approved", target: "Employee", channels: "Email + Teams + In-App" },
-                    { event: "Goal Sheet Rejected", target: "Employee", channels: "Email + Teams + In-App" },
-                    { event: "Escalation Created", target: "Target + Manager", channels: "Email + Teams + In-App" },
-                    { event: "Check-in Reminder", target: "Manager", channels: "Email + Teams (Weekly Cron)" },
+                    { event: "Goal Sheet Submitted", target: "Manager", channels: "Email + Slack + In-App" },
+                    { event: "Goal Sheet Approved", target: "Employee", channels: "Email + Slack + In-App" },
+                    { event: "Goal Sheet Rejected", target: "Employee", channels: "Email + Slack + In-App" },
+                    { event: "Escalation Created", target: "Target + Manager", channels: "Email + Slack + In-App" },
+                    { event: "Check-in Reminder", target: "Manager", channels: "Email + Slack (Weekly Cron)" },
                   ].map((item) => (
                     <div key={item.event} className="flex items-center justify-between p-2.5 border rounded-lg">
                       <div>
