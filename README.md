@@ -385,16 +385,8 @@ The platform enforces:
 ## Live Demo
 
 ```text
-Add Your Deployed URL Here
+atomquest-hack-one.vercel.app
 ```
-
-## GitHub Repository
-
-```text
-Add Your GitHub Repository URL Here
-```
-
----
 
 # 🔑 Demo Credentials
 
