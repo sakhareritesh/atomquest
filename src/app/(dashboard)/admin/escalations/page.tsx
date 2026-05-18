@@ -668,6 +668,7 @@ export default function EscalationsPage() {
                       escalation_level: u?.role === "manager" ? 2 : 1,
                     });
                   }}
+                  items={users.map((u) => ({ value: u.id, label: `${u.name} (${u.role})` }))}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select user" />

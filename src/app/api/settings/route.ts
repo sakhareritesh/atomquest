@@ -11,6 +11,7 @@ const ALLOWED_KEYS = [
 ];
 
 export async function GET(request: NextRequest) {
+  try {
   const { error: authError } = await requireRole(request, ["admin"]);
   if (authError) return authError;
 
@@ -31,9 +32,14 @@ export async function GET(request: NextRequest) {
   const hasSlackEnvUrl = !!process.env.SLACK_WEBHOOK_URL;
 
   return NextResponse.json({ settings, hasResendKey, hasSlackEnvUrl });
+  } catch (err) {
+    console.error("[settings:GET]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 export async function PUT(request: NextRequest) {
+  try {
   const { error: authError } = await requireRole(request, ["admin"]);
   if (authError) return authError;
 
@@ -51,7 +57,7 @@ export async function PUT(request: NextRequest) {
     if (key === "slack_webhook_url" && value.trim() !== "") {
       try {
         const parsed = new URL(value.trim());
-        if (parsed.protocol !== "https:" || !parsed.hostname.includes("slack.com")) {
+        if (parsed.protocol !== "https:" || (parsed.hostname !== "hooks.slack.com" && !parsed.hostname.endsWith(".slack.com"))) {
           return NextResponse.json(
             { error: "Invalid Slack webhook URL. Must be a https://hooks.slack.com/... URL." },
             { status: 400 }
@@ -74,6 +80,10 @@ export async function PUT(request: NextRequest) {
   }
 
   return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error("[settings:PUT]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 function maskUrl(url: string): string {

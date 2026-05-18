@@ -60,11 +60,7 @@ export default function AchievementsPage() {
   function isQuarterEditable(quarter: Quarter): boolean {
     const win = quarterlyWindows.find((w) => w.quarter === quarter);
     if (!win) return false;
-    if (win.status !== "open") return false;
-    const now = new Date();
-    const open = new Date(win.window_open);
-    const close = new Date(win.window_close);
-    return now >= open && now <= close;
+    return win.status === "open";
   }
 
   function getWindowForQuarter(quarter: Quarter): QuarterlyWindow | undefined {

@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUser, requireRole, parseJson } from "@/lib/api-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { syncQuarterlyWindows } from "@/lib/utils/sync-windows";
 
 export async function GET(request: NextRequest) {
+  try {
   const user = await getUser(request);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  await syncQuarterlyWindows();
 
   const supabase = createAdminClient();
   const { data, error } = await supabase
@@ -17,15 +15,25 @@ export async function GET(request: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ cycles: data });
+  } catch (err) {
+    console.error("[cycles:GET]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {
+  try {
   const { user, error: authError } = await requireRole(request, ["admin"]);
   if (authError) return authError;
 
   const body = await parseJson(request);
   if (!body?.name || !body?.year || !body?.goal_setting_start || !body?.goal_setting_end) {
     return NextResponse.json({ error: "name, year, goal_setting_start, and goal_setting_end are required" }, { status: 400 });
+  }
+
+  const year = Number(body.year);
+  if (!Number.isFinite(year) || year < 2020 || year > 2100) {
+    return NextResponse.json({ error: "Invalid year" }, { status: 400 });
   }
 
   const supabase = createAdminClient();
@@ -39,7 +47,7 @@ export async function POST(request: NextRequest) {
     .from("cycles")
     .insert({
       name: body.name,
-      year: Number(body.year),
+      year,
       goal_setting_start: body.goal_setting_start,
       goal_setting_end: body.goal_setting_end,
       status: "active",
@@ -74,9 +82,14 @@ export async function POST(request: NextRequest) {
   });
 
   return NextResponse.json({ cycle }, { status: 201 });
+  } catch (err) {
+    console.error("[cycles:POST]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 export async function PUT(request: NextRequest) {
+  try {
   const { user, error: authError } = await requireRole(request, ["admin"]);
   if (authError) return authError;
 
@@ -127,4 +140,8 @@ export async function PUT(request: NextRequest) {
   }
 
   return NextResponse.json({ cycle: data });
+  } catch (err) {
+    console.error("[cycles:PUT]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

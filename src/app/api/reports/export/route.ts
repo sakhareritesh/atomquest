@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import * as XLSX from "xlsx";
 
 export async function GET(request: NextRequest) {
+  try {
   const { user, error: authError } = await requireRole(request, ["admin", "manager"]);
   if (authError) return authError;
 
@@ -14,6 +15,9 @@ export async function GET(request: NextRequest) {
   const reportType = searchParams.get("type") || "achievement";
 
   if (reportType === "audit") {
+    if (user.role !== "admin") {
+      return NextResponse.json({ error: "Only admins can export audit logs" }, { status: 403 });
+    }
     return generateAuditExport(supabase, format, searchParams);
   }
 
@@ -127,6 +131,10 @@ export async function GET(request: NextRequest) {
       "Content-Disposition": "attachment; filename=achievement_report.xlsx",
     },
   });
+  } catch (err) {
+    console.error("[reports/export]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 async function generateAuditExport(

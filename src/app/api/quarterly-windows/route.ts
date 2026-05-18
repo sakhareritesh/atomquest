@@ -3,6 +3,7 @@ import { getUser, requireRole, parseJson } from "@/lib/api-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function GET(request: NextRequest) {
+  try {
   const user = await getUser(request);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -16,9 +17,14 @@ export async function GET(request: NextRequest) {
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ windows: data });
+  } catch (err) {
+    console.error("[quarterly-windows:GET]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 export async function PUT(request: NextRequest) {
+  try {
   const { user, error: authError } = await requireRole(request, ["admin"]);
   if (authError) return authError;
 
@@ -63,4 +69,8 @@ export async function PUT(request: NextRequest) {
   });
 
   return NextResponse.json({ window: data });
+  } catch (err) {
+    console.error("[quarterly-windows:PUT]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

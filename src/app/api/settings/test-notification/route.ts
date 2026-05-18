@@ -5,6 +5,7 @@ import { sendSlackNotification } from "@/lib/notifications/slack";
 import { goalApprovedCard } from "@/lib/notifications/templates";
 
 export async function POST(request: NextRequest) {
+  try {
   const { user, error: authError } = await requireRole(request, ["admin"]);
   if (authError) return authError;
 
@@ -53,4 +54,8 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ error: "Invalid channel. Use 'email' or 'slack'." }, { status: 400 });
+  } catch (err) {
+    console.error("[test-notification]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { computeScore } from "@/lib/utils/score-calculator";
 
 export async function GET(request: NextRequest) {
+  try {
   const user = await getUser(request);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -89,9 +90,14 @@ export async function GET(request: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ achievements: data });
+  } catch (err) {
+    console.error("[achievements:GET]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {
+  try {
   const user = await getUser(request);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -145,10 +151,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const now = new Date();
-    const windowOpen = new Date(window.window_open);
-    const windowClose = new Date(window.window_close);
-    if (window.status !== "open" || now < windowOpen || now > windowClose) {
+    if (window.status !== "open") {
       return NextResponse.json(
         { error: `The quarterly window for ${body.quarter} is not currently open` },
         { status: 403 }
@@ -279,4 +282,8 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ achievement: data });
+  } catch (err) {
+    console.error("[achievements:POST]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

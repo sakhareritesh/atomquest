@@ -4,21 +4,30 @@ import { getAuth, type Auth } from "firebase-admin/auth";
 let _app: App | null = null;
 let _auth: Auth | null = null;
 
+const ADMIN_APP_NAME = "goal-portal-admin";
+
 function getAdminApp(): App {
   if (_app) return _app;
 
-  if (getApps().length > 0) {
-    _app = getApps()[0];
+  const existing = getApps().find((a) => a.name === ADMIN_APP_NAME);
+  if (existing) {
+    _app = existing;
     return _app;
   }
 
-  const serviceAccount: ServiceAccount = {
-    projectId: process.env.FIREBASE_PROJECT_ID,
-    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-    privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-  };
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
 
-  _app = initializeApp({ credential: cert(serviceAccount) });
+  if (!projectId || !clientEmail || !privateKey) {
+    throw new Error(
+      "Missing Firebase Admin env vars: FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY"
+    );
+  }
+
+  const serviceAccount: ServiceAccount = { projectId, clientEmail, privateKey };
+
+  _app = initializeApp({ credential: cert(serviceAccount) }, ADMIN_APP_NAME);
   return _app;
 }
 

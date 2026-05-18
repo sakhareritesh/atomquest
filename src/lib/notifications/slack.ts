@@ -3,7 +3,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
 function isValidWebhookUrl(value: string): boolean {
   try {
     const url = new URL(value);
-    return url.protocol === "https:" && url.hostname.includes("slack.com");
+    return (
+      url.protocol === "https:" &&
+      (url.hostname === "hooks.slack.com" || url.hostname.endsWith(".slack.com"))
+    );
   } catch {
     return false;
   }

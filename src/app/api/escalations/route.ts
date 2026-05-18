@@ -8,6 +8,7 @@ const ESCALATION_SELECT =
   "*, target_user:users!escalations_target_user_id_fkey(id, name, email, role, department, manager_id)";
 
 export async function GET(request: NextRequest) {
+  try {
   const { user, error: authError } = await requireRole(request, ["admin", "employee", "manager"]);
   if (authError) return authError;
 
@@ -33,9 +34,14 @@ export async function GET(request: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   return NextResponse.json({ escalations: data || [] });
+  } catch (err) {
+    console.error("[escalations:GET]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {
+  try {
   const { user, error: authError } = await requireRole(request, ["admin"]);
   if (authError) return authError;
 
@@ -79,22 +85,21 @@ export async function POST(request: NextRequest) {
       target_user_id: body.target_user_id,
       escalation_level: body.escalation_level || 1,
       status: "pending",
-      message: body.message || null,
-      deadline: body.deadline || null,
-      created_by: user.id,
-      violation_id: body.violation_id || null,
     })
     .select(ESCALATION_SELECT)
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Mark the violation as escalated if linked
   if (body.violation_id) {
-    await supabase
-      .from("escalation_violations")
-      .update({ is_escalated: true })
-      .eq("id", body.violation_id);
+    try {
+      await supabase
+        .from("escalation_violations")
+        .update({ is_escalated: true })
+        .eq("id", body.violation_id);
+    } catch {
+      // violation table may not exist yet
+    }
   }
 
   // Auto-create notifications based on escalation level and target role
@@ -150,9 +155,14 @@ export async function POST(request: NextRequest) {
   }).catch((err) => console.error("[Notify] escalation error:", err));
 
   return NextResponse.json({ escalation: data, notifications_sent: notificationIds.length }, { status: 201 });
+  } catch (err) {
+    console.error("[escalations:POST]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 export async function PUT(request: NextRequest) {
+  try {
   const { user, error: authError } = await requireRole(request, ["admin"]);
   if (authError) return authError;
 
@@ -179,9 +189,6 @@ export async function PUT(request: NextRequest) {
 
   const newStatus = body.status || "resolved";
   const updateData: Record<string, unknown> = { status: newStatus };
-  if (newStatus === "resolved") {
-    updateData.resolved_at = new Date().toISOString();
-  }
 
   // Support re-escalation (bump level)
   if (body.escalation_level && body.escalation_level > existing.escalation_level) {
@@ -200,8 +207,8 @@ export async function PUT(request: NextRequest) {
         rule_type: existing.rule_type,
         target_user_id: existing.target_user_id,
         escalation_level: body.escalation_level,
-        message: existing.message,
-        deadline: existing.deadline,
+        message: null,
+        deadline: null,
       }, targetUser);
     }
   }
@@ -226,4 +233,8 @@ export async function PUT(request: NextRequest) {
   });
 
   return NextResponse.json({ escalation: data });
+  } catch (err) {
+    console.error("[escalations:PUT]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

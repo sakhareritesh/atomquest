@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sharedGoalCreateSchema } from "@/lib/validations/goal";
 
 export async function GET(request: NextRequest) {
+  try {
   const user = await getUser(request);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -30,33 +31,59 @@ export async function GET(request: NextRequest) {
   const { data: primaryGoals, error: pErr } = await primaryQuery.order("created_at", { ascending: false });
   if (pErr) return NextResponse.json({ error: pErr.message }, { status: 500 });
 
-  const sharedKpis = [];
-  for (const pg of primaryGoals || []) {
-    const { data: linked } = await supabase
-      .from("goals")
-      .select("id, employee_id, weightage, status")
-      .eq("shared_goal_id", pg.id);
-
-    if (linked && linked.length > 0) {
-      const employeeIds = linked.map((l: { employee_id: string }) => l.employee_id);
-      const { data: employees } = await supabase
-        .from("users")
-        .select("id, name, department")
-        .in("id", employeeIds);
-
-      const linkedWithNames = linked.map((l: { id: string; employee_id: string; weightage: number; status: string }) => {
-        const emp = employees?.find((e: { id: string }) => e.id === l.employee_id);
-        return { ...l, employee_name: emp?.name || "Unknown", department: emp?.department || "" };
-      });
-
-      sharedKpis.push({ ...pg, linked_goals: linkedWithNames });
-    }
+  if (!primaryGoals || primaryGoals.length === 0) {
+    return NextResponse.json({ sharedKpis: [] });
   }
 
+  const primaryGoalIds = primaryGoals.map((pg) => pg.id);
+
+  // Batch: fetch all linked goals in one query
+  const { data: allLinked } = await supabase
+    .from("goals")
+    .select("id, employee_id, weightage, status, shared_goal_id")
+    .in("shared_goal_id", primaryGoalIds);
+
+  if (!allLinked || allLinked.length === 0) {
+    return NextResponse.json({ sharedKpis: [] });
+  }
+
+  // Batch: fetch all employees referenced by linked goals
+  const allEmpIds = [...new Set(allLinked.map((l) => l.employee_id))];
+  const { data: employees } = await supabase
+    .from("users")
+    .select("id, name, department")
+    .in("id", allEmpIds);
+
+  const empMap = new Map((employees || []).map((e) => [e.id, e]));
+
+  // Group linked goals by shared_goal_id
+  const linkedByPrimary = new Map<string, typeof allLinked>();
+  for (const l of allLinked) {
+    const group = linkedByPrimary.get(l.shared_goal_id) || [];
+    group.push(l);
+    linkedByPrimary.set(l.shared_goal_id, group);
+  }
+
+  const sharedKpis = primaryGoals
+    .filter((pg) => linkedByPrimary.has(pg.id))
+    .map((pg) => {
+      const linked = linkedByPrimary.get(pg.id) || [];
+      const linkedWithNames = linked.map((l) => {
+        const emp = empMap.get(l.employee_id);
+        return { ...l, employee_name: emp?.name || "Unknown", department: emp?.department || "" };
+      });
+      return { ...pg, linked_goals: linkedWithNames };
+    });
+
   return NextResponse.json({ sharedKpis });
+  } catch (err) {
+    console.error("[shared-goals:GET]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {
+  try {
   const { user, error: authError } = await requireRole(request, ["admin", "manager"]);
   if (authError) return authError;
 
@@ -67,6 +94,10 @@ export async function POST(request: NextRequest) {
   }
 
   return handleCreateKpi(user, body);
+  } catch (err) {
+    console.error("[shared-goals:POST]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 async function handleCreateKpi(user: { id: string; role: string }, body: Record<string, unknown>) {

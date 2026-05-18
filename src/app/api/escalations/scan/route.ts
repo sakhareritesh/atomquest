@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 const APPROVAL_PENDING_DAYS = 7;
 
 export async function POST(request: NextRequest) {
+  try {
   const { error: authError } = await requireRole(request, ["admin"]);
   if (authError) return authError;
 
@@ -41,6 +42,8 @@ export async function POST(request: NextRequest) {
     (allSheets || []).map((s) => [s.employee_id, s])
   );
 
+  const empMap = new Map((allEmployees || []).map((e) => [e.id, e]));
+
   const now = new Date();
   const violations: Array<{
     rule_type: string;
@@ -76,7 +79,7 @@ export async function POST(request: NextRequest) {
       sheet.submitted_at &&
       new Date(sheet.submitted_at) < pendingThreshold
     ) {
-      const emp = (allEmployees || []).find((e) => e.id === sheet.employee_id);
+      const emp = empMap.get(sheet.employee_id);
       const managerId = emp?.manager_id;
       if (managerId) {
         violations.push({
@@ -119,7 +122,7 @@ export async function POST(request: NextRequest) {
 
       for (const sheet of allSheets || []) {
         if (sheet.status !== "approved" && sheet.status !== "locked") continue;
-        const emp = (allEmployees || []).find((e) => e.id === sheet.employee_id);
+        const emp = empMap.get(sheet.employee_id);
         const managerId = emp?.manager_id;
         if (!managerId) continue;
 
@@ -232,9 +235,14 @@ export async function POST(request: NextRequest) {
       },
     },
   });
+  } catch (err) {
+    console.error("[escalations/scan:POST]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 export async function GET(request: NextRequest) {
+  try {
   const { error: authError } = await requireRole(request, ["admin"]);
   if (authError) return authError;
 
@@ -255,4 +263,8 @@ export async function GET(request: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   return NextResponse.json({ violations: data || [] });
+  } catch (err) {
+    console.error("[escalations/scan:GET]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

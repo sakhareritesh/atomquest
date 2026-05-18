@@ -3,12 +3,14 @@ import { requireRole, parseJson } from "@/lib/api-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function GET(request: NextRequest) {
+  try {
   const { user, error: authError } = await requireRole(request, ["employee", "manager", "admin"]);
   if (authError) return authError;
 
   const supabase = createAdminClient();
   const { searchParams } = new URL(request.url);
-  const limit = parseInt(searchParams.get("limit") || "20", 10);
+  const rawLimit = parseInt(searchParams.get("limit") || "20", 10);
+  const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 100) : 20;
   const unreadOnly = searchParams.get("unread_only") === "true";
 
   let query = supabase
@@ -35,9 +37,14 @@ export async function GET(request: NextRequest) {
     notifications: notifications || [],
     unread_count: unreadCount || 0,
   });
+  } catch (err) {
+    console.error("[notifications:GET]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 export async function PUT(request: NextRequest) {
+  try {
   const { user, error: authError } = await requireRole(request, ["employee", "manager", "admin"]);
   if (authError) return authError;
 
@@ -73,4 +80,8 @@ export async function PUT(request: NextRequest) {
   }
 
   return NextResponse.json({ error: "Provide notification_id or mark_all_read" }, { status: 400 });
+  } catch (err) {
+    console.error("[notifications:PUT]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

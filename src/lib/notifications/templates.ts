@@ -1,6 +1,15 @@
 const BRAND_COLOR = "#2563eb";
 const MUTED_COLOR = "#6b7280";
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function layout(title: string, body: string, ctaText: string, ctaUrl: string): string {
   return `
 <!DOCTYPE html>
@@ -31,11 +40,12 @@ function layout(title: string, body: string, ctaText: string, ctaUrl: string): s
 }
 
 export function goalSubmittedEmail(employeeName: string, goalCount: number, baseUrl: string): { subject: string; html: string } {
+  const safeName = escapeHtml(employeeName);
   return {
     subject: `Goal Sheet Submitted: ${employeeName}`,
     html: layout(
       "New Goal Sheet Awaiting Your Approval",
-      `<p><strong>${employeeName}</strong> has submitted their goal sheet with <strong>${goalCount} goals</strong> for your review.</p>
+      `<p><strong>${safeName}</strong> has submitted their goal sheet with <strong>${goalCount} goals</strong> for your review.</p>
        <p>Please review the goals, adjust weightages if needed, and approve or return for rework.</p>`,
       "Review Now",
       `${baseUrl}/manager/approvals`
@@ -44,11 +54,13 @@ export function goalSubmittedEmail(employeeName: string, goalCount: number, base
 }
 
 export function goalApprovedEmail(employeeName: string, cycleName: string, baseUrl: string): { subject: string; html: string } {
+  const safeName = escapeHtml(employeeName);
+  const safeCycle = escapeHtml(cycleName);
   return {
     subject: `Your Goals Have Been Approved — ${cycleName}`,
     html: layout(
       "Your Goal Sheet Has Been Approved!",
-      `<p>Great news, <strong>${employeeName}</strong>! Your goal sheet for <strong>${cycleName}</strong> has been approved and locked.</p>
+      `<p>Great news, <strong>${safeName}</strong>! Your goal sheet for <strong>${safeCycle}</strong> has been approved and locked.</p>
        <p>You can now start tracking your achievements against these goals.</p>`,
       "View My Goals",
       `${baseUrl}/employee/goals`
@@ -57,17 +69,18 @@ export function goalApprovedEmail(employeeName: string, cycleName: string, baseU
 }
 
 export function goalRejectedEmail(employeeName: string, reason: string | null, baseUrl: string): { subject: string; html: string } {
+  const safeName = escapeHtml(employeeName);
   const reasonBlock = reason
     ? `<div style="background:#fef2f2;border-left:4px solid #ef4444;padding:12px 16px;margin:16px 0;border-radius:0 4px 4px 0;">
          <p style="margin:0;color:#991b1b;font-size:13px;font-weight:500;">Reason for return:</p>
-         <p style="margin:4px 0 0;color:#7f1d1d;font-size:13px;">${reason}</p>
+         <p style="margin:4px 0 0;color:#7f1d1d;font-size:13px;">${escapeHtml(reason)}</p>
        </div>`
     : "";
   return {
     subject: "Your Goal Sheet Needs Revision",
     html: layout(
       "Goal Sheet Returned for Rework",
-      `<p><strong>${employeeName}</strong>, your manager has returned your goal sheet for revision.</p>
+      `<p><strong>${safeName}</strong>, your manager has returned your goal sheet for revision.</p>
        ${reasonBlock}
        <p>Please make the necessary changes and resubmit.</p>`,
       "Edit My Goals",
@@ -84,17 +97,20 @@ export function escalationEmail(
   link: string,
   baseUrl: string
 ): { subject: string; html: string } {
-  const deadlineBlock = deadline
-    ? `<p>Deadline: <strong>${new Date(deadline).toLocaleDateString()}</strong></p>`
+  const safeName = escapeHtml(targetName);
+  const safeRule = escapeHtml(ruleLabel);
+  const deadlineDate = deadline ? new Date(deadline) : null;
+  const deadlineBlock = deadlineDate && !isNaN(deadlineDate.getTime())
+    ? `<p>Deadline: <strong>${deadlineDate.toLocaleDateString()}</strong></p>`
     : "";
   const messageBlock = message
-    ? `<p style="color:${MUTED_COLOR};font-style:italic;">"${message}"</p>`
+    ? `<p style="color:${MUTED_COLOR};font-style:italic;">"${escapeHtml(message)}"</p>`
     : "";
   return {
     subject: `Escalation: ${ruleLabel} — ${targetName}`,
     html: layout(
-      `Escalation Alert: ${ruleLabel}`,
-      `<p>An escalation has been raised for <strong>${targetName}</strong> regarding <strong>${ruleLabel}</strong>.</p>
+      `Escalation Alert: ${safeRule}`,
+      `<p>An escalation has been raised for <strong>${safeName}</strong> regarding <strong>${safeRule}</strong>.</p>
        ${messageBlock}${deadlineBlock}
        <p>Please take action as soon as possible.</p>`,
       "Take Action",
@@ -109,12 +125,14 @@ export function checkinReminderEmail(
   quarter: string,
   baseUrl: string
 ): { subject: string; html: string } {
-  const memberList = teamMembers.map((n) => `<li>${n}</li>`).join("");
+  const safeMgrName = escapeHtml(managerName);
+  const safeQuarter = escapeHtml(quarter);
+  const memberList = teamMembers.map((n) => `<li>${escapeHtml(n)}</li>`).join("");
   return {
     subject: `Check-in Reminder: ${quarter} Reviews Pending`,
     html: layout(
-      `${quarter} Check-in Reminder`,
-      `<p>Hi <strong>${managerName}</strong>, the following team members are awaiting their ${quarter} check-in:</p>
+      `${safeQuarter} Check-in Reminder`,
+      `<p>Hi <strong>${safeMgrName}</strong>, the following team members are awaiting their ${safeQuarter} check-in:</p>
        <ul style="padding-left:20px;">${memberList}</ul>
        <p>Please complete the check-ins before the window closes.</p>`,
       "Go to Check-ins",

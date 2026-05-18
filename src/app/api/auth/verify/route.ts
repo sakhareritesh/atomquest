@@ -21,10 +21,9 @@ export async function POST(request: NextRequest) {
       const { adminAuth } = await import("@/lib/firebase-admin");
       decoded = await adminAuth.verifyIdToken(idToken);
     } catch (firebaseError: unknown) {
-      const msg = firebaseError instanceof Error ? firebaseError.message : String(firebaseError);
-      console.error("Firebase Admin verify failed:", msg);
+      console.error("Firebase Admin verify failed:", firebaseError instanceof Error ? firebaseError.message : String(firebaseError));
       return NextResponse.json(
-        { error: `Firebase verification failed: ${msg}` },
+        { error: "Authentication failed. Please try signing in again." },
         { status: 401 }
       );
     }
@@ -45,17 +44,16 @@ export async function POST(request: NextRequest) {
       if (fetchError && fetchError.code !== "PGRST116") {
         console.error("Supabase fetch error:", fetchError);
         return NextResponse.json(
-          { error: `Database error: ${fetchError.message}. Have you run the schema.sql in Supabase SQL Editor?` },
+          { error: "Database error. Please try again later." },
           { status: 500 }
         );
       }
 
       user = existingUser;
     } catch (dbError: unknown) {
-      const msg = dbError instanceof Error ? dbError.message : String(dbError);
-      console.error("Supabase connection error:", msg);
+      console.error("Supabase connection error:", dbError instanceof Error ? dbError.message : String(dbError));
       return NextResponse.json(
-        { error: `Database connection failed: ${msg}` },
+        { error: "Database connection failed. Please try again later." },
         { status: 500 }
       );
     }
@@ -114,16 +112,15 @@ export async function POST(request: NextRequest) {
         }
         console.error("Supabase insert error:", insertError);
         return NextResponse.json(
-          { error: `Failed to create user: ${insertError.message}. Have you run the schema.sql in Supabase SQL Editor?` },
+          { error: "Failed to create user. Please try again later." },
           { status: 500 }
         );
       }
       user = newUser;
     } catch (insertErr: unknown) {
-      const msg = insertErr instanceof Error ? insertErr.message : String(insertErr);
-      console.error("User creation error:", msg);
+      console.error("User creation error:", insertErr instanceof Error ? insertErr.message : String(insertErr));
       return NextResponse.json(
-        { error: `User creation failed: ${msg}` },
+        { error: "User creation failed. Please try again later." },
         { status: 500 }
       );
     }
@@ -132,9 +129,8 @@ export async function POST(request: NextRequest) {
     setCookies(response, idToken, user.role);
     return response;
   } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : String(error);
-    console.error("Auth verification unexpected error:", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    console.error("Auth verification unexpected error:", error instanceof Error ? error.message : String(error));
+    return NextResponse.json({ error: "An unexpected error occurred" }, { status: 500 });
   }
 }
 

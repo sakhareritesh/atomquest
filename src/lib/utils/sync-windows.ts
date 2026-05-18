@@ -13,10 +13,15 @@ export async function syncQuarterlyWindows(): Promise<{
 }> {
   const supabase = createAdminClient();
 
-  const { data: activeCycles } = await supabase
+  const { data: activeCycles, error: cycleErr } = await supabase
     .from("cycles")
     .select("id")
     .eq("status", "active");
+
+  if (cycleErr) {
+    console.error("[sync-windows] Failed to fetch cycles:", cycleErr.message);
+    return { opened: 0, closed: 0 };
+  }
 
   if (!activeCycles || activeCycles.length === 0) {
     return { opened: 0, closed: 0 };
@@ -24,10 +29,15 @@ export async function syncQuarterlyWindows(): Promise<{
 
   const cycleIds = activeCycles.map((c) => c.id);
 
-  const { data: windows } = await supabase
+  const { data: windows, error: winErr } = await supabase
     .from("quarterly_windows")
     .select("*")
     .in("cycle_id", cycleIds);
+
+  if (winErr) {
+    console.error("[sync-windows] Failed to fetch windows:", winErr.message);
+    return { opened: 0, closed: 0 };
+  }
 
   if (!windows || windows.length === 0) {
     return { opened: 0, closed: 0 };
@@ -48,17 +58,19 @@ export async function syncQuarterlyWindows(): Promise<{
     const shouldBeOpen = today >= openDate && today <= closeDate;
 
     if (shouldBeOpen && win.status === "closed") {
-      await supabase
+      const { error } = await supabase
         .from("quarterly_windows")
         .update({ status: "open" })
         .eq("id", win.id);
-      opened++;
+      if (!error) opened++;
+      else console.error(`[sync-windows] Failed to open window ${win.id}:`, error.message);
     } else if (!shouldBeOpen && win.status === "open") {
-      await supabase
+      const { error } = await supabase
         .from("quarterly_windows")
         .update({ status: "closed" })
         .eq("id", win.id);
-      closed++;
+      if (!error) closed++;
+      else console.error(`[sync-windows] Failed to close window ${win.id}:`, error.message);
     }
   }
 

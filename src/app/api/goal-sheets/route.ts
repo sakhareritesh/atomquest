@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyGoalSubmitted, notifyGoalApproved, notifyGoalRejected } from "@/lib/notifications";
 
 export async function GET(request: NextRequest) {
+  try {
   const user = await getUser(request);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -81,9 +82,14 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.json({ goalSheets: data });
+  } catch (err) {
+    console.error("[goal-sheets:GET]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 export async function PUT(request: NextRequest) {
+  try {
   const user = await getUser(request);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -331,4 +337,8 @@ export async function PUT(request: NextRequest) {
   }
 
   return NextResponse.json({ goalSheet: data });
+  } catch (err) {
+    console.error("[goal-sheets:PUT]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

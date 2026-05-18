@@ -2,7 +2,22 @@ import { NextResponse } from "next/server";
 
 export async function POST() {
   const response = NextResponse.json({ success: true });
-  response.cookies.set("firebase-token", "", { maxAge: 0, path: "/" });
-  response.cookies.set("user-role", "", { maxAge: 0, path: "/" });
+  const isProduction = process.env.NODE_ENV === "production";
+
+  response.cookies.set("firebase-token", "", {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: "lax",
+    maxAge: 0,
+    path: "/",
+  });
+  response.cookies.set("user-role", "", {
+    httpOnly: false,
+    secure: isProduction,
+    sameSite: "lax",
+    maxAge: 0,
+    path: "/",
+  });
+
   return response;
 }

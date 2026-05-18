@@ -3,6 +3,7 @@ import { getUser, requireRole, parseJson } from "@/lib/api-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function GET(request: NextRequest) {
+  try {
   const user = await getUser(request);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -76,9 +77,14 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.json({ checkins: data });
+  } catch (err) {
+    console.error("[checkins:GET]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {
+  try {
   const { user, error: authError } = await requireRole(request, ["manager", "admin"]);
   if (authError) return authError;
 
@@ -125,10 +131,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const now = new Date();
-    const windowOpen = new Date(window.window_open);
-    const windowClose = new Date(window.window_close);
-    if (window.status !== "open" || now < windowOpen || now > windowClose) {
+    if (window.status !== "open") {
       return NextResponse.json(
         { error: `The quarterly window for ${body.quarter} is not currently open` },
         { status: 403 }
@@ -201,4 +204,8 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ checkin: data });
+  } catch (err) {
+    console.error("[checkins:POST]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

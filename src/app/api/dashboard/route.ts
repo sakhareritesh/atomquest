@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { computeQuarterlyOverallScores } from "@/lib/utils/score-calculator";
 
 export async function GET(request: NextRequest) {
+  try {
   const { user, error: authError } = await requireRole(request, ["employee", "manager", "admin"]);
   if (authError) return authError;
 
@@ -46,6 +47,10 @@ export async function GET(request: NextRequest) {
   }
 
   return handleAdminDashboard(supabase, cycle);
+  } catch (err) {
+    console.error("[dashboard] Unexpected error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 async function handleEmployeeDashboard(
@@ -240,46 +245,34 @@ async function handleAdminDashboard(
   supabase: ReturnType<typeof createAdminClient>,
   activeCycle: { id: string; [key: string]: unknown }
 ) {
-  const { data: allUsers, count: totalUsers } = await supabase
-    .from("users")
-    .select("*", { count: "exact" });
+  const [usersRes, sheetsRes, checkinsRes, escalationsRes, violationsRes] = await Promise.all([
+    supabase.from("users").select("role", { count: "exact" }),
+    supabase.from("goal_sheets").select("status").eq("cycle_id", activeCycle.id),
+    supabase.from("checkins").select("*", { count: "exact", head: true }),
+    supabase.from("escalations").select("*", { count: "exact", head: true }).in("status", ["pending", "escalated"]),
+    supabase.from("escalation_violations").select("*", { count: "exact", head: true }).eq("is_escalated", false),
+  ]);
 
-  const { data: allSheets } = await supabase
-    .from("goal_sheets")
-    .select("status")
-    .eq("cycle_id", activeCycle.id);
+  const allUsers = usersRes.data || [];
+  const allSheets = sheetsRes.data || [];
 
-  const submitted = (allSheets || []).filter((s) => s.status === "submitted").length;
-  const approved = (allSheets || []).filter(
+  const submitted = allSheets.filter((s) => s.status === "submitted").length;
+  const approved = allSheets.filter(
     (s) => s.status === "approved" || s.status === "locked"
   ).length;
-
-  const { count: totalCheckins } = await supabase
-    .from("checkins")
-    .select("*", { count: "exact" });
-
-  const { count: pendingEscalationCount } = await supabase
-    .from("escalations")
-    .select("*", { count: "exact", head: true })
-    .in("status", ["pending", "escalated"]);
-
-  const { count: violationCount } = await supabase
-    .from("escalation_violations")
-    .select("*", { count: "exact", head: true })
-    .eq("is_escalated", false);
 
   return NextResponse.json({
     activeCycle,
     stats: {
-      totalUsers: totalUsers || 0,
-      totalSheets: allSheets?.length || 0,
+      totalUsers: usersRes.count || 0,
+      totalSheets: allSheets.length,
       pendingApprovals: submitted,
       approvedSheets: approved,
-      totalCheckins: totalCheckins || 0,
-      employees: (allUsers || []).filter((u) => u.role === "employee").length,
-      managers: (allUsers || []).filter((u) => u.role === "manager").length,
-      pendingEscalations: pendingEscalationCount || 0,
-      detectedViolations: violationCount || 0,
+      totalCheckins: checkinsRes.count || 0,
+      employees: allUsers.filter((u) => u.role === "employee").length,
+      managers: allUsers.filter((u) => u.role === "manager").length,
+      pendingEscalations: escalationsRes.count || 0,
+      detectedViolations: violationsRes.count || 0,
     },
   });
 }

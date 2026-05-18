@@ -3,6 +3,7 @@ import { requireRole } from "@/lib/api-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function GET(request: NextRequest) {
+  try {
   const { error: authError } = await requireRole(request, ["admin"]);
   if (authError) return authError;
 
@@ -175,4 +176,8 @@ export async function GET(request: NextRequest) {
       completedCheckins,
     },
   });
+  } catch (err) {
+    console.error("[reports/completion]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

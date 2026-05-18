@@ -3,6 +3,7 @@ import { getUser, requireRole, parseJson } from "@/lib/api-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function GET(request: NextRequest) {
+  try {
   const user = await getUser(request);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -27,9 +28,14 @@ export async function GET(request: NextRequest) {
   const { data, error } = await query.order("name");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ users: data });
+  } catch (err) {
+    console.error("[users:GET]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 export async function PUT(request: NextRequest) {
+  try {
   const { user, error: authError } = await requireRole(request, ["admin"]);
   if (authError) return authError;
 
@@ -45,6 +51,11 @@ export async function PUT(request: NextRequest) {
     .single();
 
   if (!oldUser) return NextResponse.json({ error: "User not found" }, { status: 404 });
+
+  const validRoles = ["employee", "manager", "admin"];
+  if (body.role && !validRoles.includes(body.role)) {
+    return NextResponse.json({ error: "Invalid role" }, { status: 400 });
+  }
 
   const updateData: Record<string, unknown> = {};
   if (body.name) updateData.name = body.name;
@@ -87,4 +98,8 @@ export async function PUT(request: NextRequest) {
   }
 
   return NextResponse.json({ user: data });
+  } catch (err) {
+    console.error("[users:PUT]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
